@@ -11,6 +11,7 @@ public class PlayerController : MonoBehaviour
     Rigidbody2D rigidBody;
     Animator animator;
     SpriteRenderer spriteRenderer;
+    Vector3 startPosition;
 
     const string STATE_ALIVE = "isAlive";
     const string STATE_ON_THE_GROUND = "isOnTheGround";
@@ -18,24 +19,40 @@ public class PlayerController : MonoBehaviour
 
     public LayerMask groundMask;
 
+    public static PlayerController sharedInstance;
+
     void Awake()
     {
         rigidBody = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (sharedInstance == null)
+        {
+            sharedInstance = this;
+        }
     }
 
     // Start is called before the first frame update
     void Start()
     {
+
+        startPosition = this.transform.position;
+    }
+
+    public void StartGame()
+    {
         animator.SetBool(STATE_ALIVE, true);
         animator.SetBool(STATE_ON_THE_GROUND, true);
+
+        this.transform.position = startPosition;
+        this.rigidBody.velocity = Vector2.zero;
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
+        if (Input.GetButtonDown("Jump"))
         {
             Jump();
         }
@@ -45,20 +62,32 @@ public class PlayerController : MonoBehaviour
         Debug.DrawRay(this.transform.position, Vector2.down * 1.5f, Color.red);
     }
 
-    
+
     void FixedUpdate()
     {
 
-        Walk();
+        // Walk();
+        if (GameManager.sharedInstance.currentGameState == GameState.inGame)
+        {
+            if (rigidBody.velocity.x < runningSpeed)
+            {
+                rigidBody.velocity = new Vector2(runningSpeed, //x
+                                                 rigidBody.velocity.y //y
+                                                );
+            }
+        }
+        else
+        {// Si no estamos dentro de la partida
+            rigidBody.velocity = new Vector2(0, rigidBody.velocity.y);
+        }
 
     }
-    
 
     void Walk()
     {
 
-       /* if (rigidBody.velocity.x < runningSpeed)
-        {*/
+       if (rigidBody.velocity.x < runningSpeed)
+       {
             if (Input.GetKey(KeyCode.D))
             {
                 rigidBody.velocity = new Vector2(runningSpeed, // x 
@@ -75,13 +104,13 @@ public class PlayerController : MonoBehaviour
                 spriteRenderer.flipX = true;
             }
             
-        /*}*/
+        }
     }
 
     // Hace saltar al personaje
     void Jump()
     {
-        if (IsTouchingTheGround())
+        if (GameManager.sharedInstance.currentGameState == GameState.inGame && IsTouchingTheGround())
         {
             rigidBody.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);            
         }
@@ -101,5 +130,11 @@ public class PlayerController : MonoBehaviour
         {
             return false;
         }
+    }
+
+    public void Die()
+    {
+        this.animator.SetBool(STATE_ALIVE, false);
+        GameManager.sharedInstance.GameOver();
     }
 }
